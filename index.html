@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campus Energy Detective</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      color: #17332b;
+    }
+    h1 { margin-bottom: 6px; }
+    .muted { color: #64748b; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .card, .panel {
+      background: white;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 3px 12px #0000000a;
+    }
+    .number { font-size: 28px; font-weight: bold; margin-top: 10px; }
+    .panel { margin-bottom: 20px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left;
+      padding: 13px 10px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .alert { color: #b45309; font-weight: bold; }
+    .ok { color: #15803d; font-weight: bold; }
+    button {
+      padding: 10px 15px;
+      background: #176b52;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    @media (max-width: 600px) {
+      body { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>⚡ Campus Energy Detective</h1>
+  <p class="muted">
+    Discover possible energy waste. Take action. Save energy.
+  </p>
+  <p class="muted">DEMO MODE — fictional sample data</p>
+
+  <div class="cards">
+    <div class="card">
+      Total Energy Used
+      <div class="number" id="total">--</div>
+      <p class="muted">Sample daily consumption</p>
+    </div>
+    <div class="card">
+      Potential Waste
+      <div class="number" id="waste">--</div>
+      <p class="muted">Estimated daily energy</p>
+    </div>
+    <div class="card">
+      Rooms Flagged
+      <div class="number" id="alerts">--</div>
+      <p class="muted">Require verification</p>
+    </div>
+    <div class="card">
+      Potential Cost Savings
+      <div class="number" id="savings">--</div>
+      <p class="muted">At assumed ₹8 per kWh</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Daily Energy by Room</h2>
+    <canvas id="energyChart"></canvas>
+  </div>
+
+  <div class="panel">
+    <h2>Room Waste Detection</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Room</th>
+          <th>Occupied?</th>
+          <th>Lights</th>
+          <th>AC</th>
+          <th>Energy</th>
+          <th>Finding</th>
+        </tr>
+      </thead>
+      <tbody id="roomRows"></tbody>
+    </table>
+    <p class="muted">
+      A flagged room needs verification; this demo does not use live sensors.
+    </p>
+    <button onclick="checkRooms()">Run detection again</button>
+  </div>
+
+  <div class="panel">
+    <h2>💡 Recommended Actions</h2>
+    <ul id="recommendations"></ul>
+  </div>
+
+  <script>
+    // Fictional example data. Energy values are kWh per day.
+    // wasteKwh is an illustrative estimate, not measured waste.
+    const rooms = [
+      { name: "Classroom A-101", occupied: false,
+        lights: true, ac: true, kwh: 18, wasteKwh: 3 },
+      { name: "Lab B-201", occupied: true,
+        lights: true, ac: true, kwh: 30, wasteKwh: 0 },
+      { name: "Library", occupied: true,
+        lights: true, ac: false, kwh: 12, wasteKwh: 0 },
+      { name: "Classroom C-105", occupied: false,
+        lights: true, ac: false, kwh: 10, wasteKwh: 1.5 }
+    ];
+
+    const tariff = 8;
+
+    function checkRooms() {
+      const total = rooms.reduce((sum, r) => sum + r.kwh, 0);
+      const waste = rooms.reduce((sum, r) => sum + r.wasteKwh, 0);
+
+      document.getElementById("total").textContent =
+        total.toFixed(1) + " kWh";
+      document.getElementById("waste").textContent =
+        waste.toFixed(1) + " kWh";
+      document.getElementById("alerts").textContent =
+        rooms.filter(r => !r.occupied && (r.lights || r.ac)).length;
+      document.getElementById("savings").textContent =
+        "₹" + (waste * tariff).toFixed(0);
+
+      document.getElementById("roomRows").innerHTML =
+        rooms.map(r => {
+          const flagged = !r.occupied && (r.lights || r.ac);
+          const finding = flagged
+            ? "Check possible waste"
+            : "No rule triggered";
+          return `<tr>
+            <td>${r.name}</td>
+            <td>${r.occupied ? "Yes" : "No"}</td>
+            <td>${r.lights ? "ON" : "OFF"}</td>
+            <td>${r.ac ? "ON" : "OFF"}</td>
+            <td>${r.kwh} kWh</td>
+            <td class="${flagged ? "alert" : "ok"}">${finding}</td>
+          </tr>`;
+        }).join("");
+
+      const flaggedRooms = rooms.filter(
+        r => !r.occupied && (r.lights || r.ac)
+      );
+      document.getElementById("recommendations").innerHTML =
+        flaggedRooms.length
+          ? flaggedRooms.map(r =>
+              `<li><b>${r.name}:</b> Verify occupancy and switch off
+              unnecessary lights or AC if the room is empty.</li>`
+            ).join("")
+          : "<li>No rooms currently match the demo detection rule.</li>";
+    }
+
+    new Chart(document.getElementById("energyChart"), {
+      type: "bar",
+      data: {
+        labels: rooms.map(r => r.name),
+        datasets: [{
+          label: "Energy used (kWh/day)",
+          data: rooms.map(r => r.kwh),
+          backgroundColor: "#248566"
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+
+    checkRooms();
+  </script>
+</body>
+</html>
